@@ -1,5 +1,7 @@
-import argparse
+import subprocess
 
-parser = argparse.ArgumentParser(description='Chatbot')
-parser.add_argument('user_prompt', type=str, help= "User prompt")
-args = parser.parse_args()
+sub = subprocess.run(["python", "test_write_file.py"], capture_output=True, text=True )
+
+print(type(sub))
+print(sub.returncode)
+print(sub.stdout)
