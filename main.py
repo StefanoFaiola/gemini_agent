@@ -4,7 +4,7 @@ from google import genai
 from google.genai import types
 import argparse
 from agent.prompts import system_prompt
-from agent.call_function import available_functions
+from agent.call_function import available_functions, call_function
 
 
 def main():
@@ -19,13 +19,12 @@ def main():
         raise RuntimeError("Environment variable not found")
 
 
-
-
     client = genai.Client(api_key=api_key)
     messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
 
     generate_content(client, messages, args.user_prompt, args.verbose)
 
+    
 
 def generate_content(client, messages, prompt, verbose):
     response = client.models.generate_content(
@@ -52,9 +51,24 @@ def generate_content(client, messages, prompt, verbose):
         print("Response:")
         print(response.text)
         return
+    
+    function_results = []
 
     for function_call in response.function_calls:
         print(f"Calling function: {function_call.name}({function_call.args})")
+        function_call_result = call_function(function_call, verbose)
+
+        if function_call_result.parts == "" or function_call_result.parts is None:
+            raise Exception(".parts is empty")
+        if function_call_result.parts[0].function_response is None:
+            raise Exception("function_response is None")
+        if function_call_result.parts[0].function_response.response is None:
+            raise Exception("No function results")
+        
+        function_results.append(function_call_result.parts[0])
+
+        if verbose:
+            print(f"-> {function_call_result.parts[0].function_response.response}")
 
 
 if __name__ == "__main__":
