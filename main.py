@@ -5,6 +5,8 @@ from google.genai import types
 import argparse
 from agent.prompts import system_prompt
 from agent.call_function import available_functions, call_function
+import sys
+from config import MAX_ITERS
 
 
 def main():
@@ -22,7 +24,21 @@ def main():
     client = genai.Client(api_key=api_key)
     messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
 
-    generate_content(client, messages, args.user_prompt, args.verbose)
+    for _ in range(21):
+        try:
+            last_response = generate_content(client, messages, args.user_prompt, args.verbose)
+            if last_response:
+                print("Final response:")
+                print(last_response)
+                return
+        except Exception as e:
+            print(f"Error in generate_content: {e}")
+
+
+
+    print(f"Maximum iterations ({MAX_ITERS}) reached")
+    sys.exit(1)
+        
 
     
 
@@ -34,6 +50,11 @@ def generate_content(client, messages, prompt, verbose):
             system_instruction=system_prompt,
             tools=[available_functions]),
         )
+    
+    if response.candidates:
+        for c in response.candidates:
+            if c.content:
+                messages.append(c.content)
 
 
     prompt_tokens = response.usage_metadata.prompt_token_count
@@ -48,9 +69,7 @@ def generate_content(client, messages, prompt, verbose):
         print(f"Response tokens: {response_tokens}")
 
     if not response.function_calls:
-        print("Response:")
-        print(response.text)
-        return
+        return response.text
     
     function_results = []
 
@@ -70,6 +89,7 @@ def generate_content(client, messages, prompt, verbose):
         if verbose:
             print(f"-> {function_call_result.parts[0].function_response.response}")
 
+    messages.append(types.Content(role="user", parts=function_results))
 
 if __name__ == "__main__":
     main()
